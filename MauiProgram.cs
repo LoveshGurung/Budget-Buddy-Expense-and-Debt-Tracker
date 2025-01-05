@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Budget_Buddy_Expense_and_Debt_Tracker.Components.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Budget_Buddy_Expense_and_Debt_Tracker
 {
@@ -15,10 +16,30 @@ namespace Budget_Buddy_Expense_and_Debt_Tracker
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            if (!Directory.Exists(Utils.ROOTFOLDER))
+            {
+                Directory.CreateDirectory(Utils.ROOTFOLDER);
+            }
+
+            if (!File.Exists(Utils.USERS))
+            {
+                File.Create(Utils.USERS).Close();
+            }
+
+            if (!File.Exists(Utils.TRANSACTIONS))
+            {
+                File.Create(Utils.TRANSACTIONS).Close();
+            }
+            if (!File.Exists(Utils.TAGS))
+            {
+                File.Create(Utils.TAGS).Close();
+            }
+
+
 
 #if DEBUG
-    		builder.Services.AddBlazorWebViewDeveloperTools();
-    		builder.Logging.AddDebug();
+            builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Logging.AddDebug();
 #endif
 
             return builder.Build();

@@ -1,5 +1,147 @@
-﻿@page "/"
+﻿@page "/home"
+@using Budget_Buddy_Expense_and_Debt_Tracker.Components.Layout
+@using Components.Model
+@using System.Text.Json
+@using Components.Utilities
+@using System.Diagnostics
 
-<h1>Hello, world!</h1>
+<link href="app-tailwind.css" rel="stylesheet" />
+<div class="flex justify-between space-x-4 ml-72 p-4">
+    <div class="ml-72 flex flex-wrap justify-between space-x-4 p-4">
+        <!-- First Row -->
+        <div class="w-1/4 rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Total Inflows</p>
+            <p class="text-xl">@income</p>
+        </div>
+        <div class="w-1/4 rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Total Outflows</p>
+            <p class="text-xl">@expense</p>
+        </div>
+        <div class="w-1/4 rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Debts</p>
+            <p class="text-xl">@debt</p>
+        </div>
 
-Welcome to your new app.
+        <div class="w-1/4 rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Cleared Debt</p>
+            <p class="text-xl">@clearedDebt</p>
+        </div>
+        <div class="w-1/4 rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Pending Debts</p>
+            <p class="text-xl">@pendingDebt</p>
+        </div>
+
+        <!-- Transaction Summary -->
+        <div class="w-full rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Total Transactions</p>
+            <p class="text-xl">@totalTransactionsAmount</p>
+        </div>
+
+        <!-- Pending Debts List -->
+        <div class="w-full rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Pending Debts</p>
+            @foreach (var debtTransaction in transactions.Where(t => t.TransactionType == "debt" && !t.IsCleared))
+            {
+                <p> @debtTransaction.Amount</p>
+            }
+        </div>
+
+        <!-- Highest/Lowest Transactions -->
+        <div class="w-full rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Highest Inflow</p>
+            <p class="text-xl">@highestInflow?.Amount</p>
+        </div>
+        <div class="w-full rounded-lg border border-gray-300 p-4 text-center">
+            <p class="text-lg font-bold">Lowest Outflow</p>
+            <p class="text-xl">@lowestOutflow?.Amount</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private double income { get; set; } = 0;
+    private double expense { get; set; } = 0;
+    private double debt { get; set; } = 0;
+    private double clearedDebt { get; set; } = 0;
+    private double pendingDebt { get; set; } = 0;
+    private double totalTransactionsAmount { get; set; } = 0;
+
+    private TransactionPerson highestInflow { get; set; }
+    private TransactionPerson lowestOutflow { get; set; }
+
+    private List<TransactionPerson> transactions { get; set; } = new();
+    private string error_message { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactionsAsync();
+
+        // Calculate totals
+        income = transactions
+            .Where(t => t.TransactionType == "income")
+            .Sum(t => t.Amount);
+
+        expense = transactions
+            .Where(t => t.TransactionType == "expense")
+            .Sum(t => t.Amount);
+
+        debt = transactions
+            .Where(t => t.TransactionType == "debt")
+            .Sum(t => t.Amount);
+
+        clearedDebt = transactions
+            .Where(t => t.TransactionType == "debt" && t.IsCleared)
+            .Sum(t => t.Amount);
+
+        pendingDebt = transactions
+            .Where(t => t.TransactionType == "debt" && !t.IsCleared)
+            .Sum(t => t.Amount);
+
+        // Total Transactions
+        totalTransactionsAmount = income + debt - expense;
+
+        // Highest/Lowest Transactions
+        highestInflow = transactions
+            .Where(t => t.TransactionType == "income")
+            .OrderByDescending(t => t.Amount)
+            .FirstOrDefault();
+
+        lowestOutflow = transactions
+            .Where(t => t.TransactionType == "expense")
+            .OrderBy(t => t.Amount)
+            .FirstOrDefault();
+    }
+
+    private async Task LoadTransactionsAsync()
+    {
+        try
+        {
+            if (File.Exists(Utils.TRANSACTIONS))
+            {
+                var lines = await File.ReadAllLinesAsync(Utils.TRANSACTIONS);
+
+                transactions = lines
+                    .Select(line => JsonSerializer.Deserialize<TransactionPerson>(line))
+                    .Where(transaction => transaction != null)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            error_message = $"Error loading transactions: {ex.Message}";
+        }
+    }
+
+    private async Task SaveTransactionsToFileAsync()
+    {
+        try
+        {
+            var serializedData = transactions.Select(t => JsonSerializer.Serialize(t));
+            await File.WriteAllLinesAsync(Utils.TRANSACTIONS, serializedData);
+        }
+        catch (Exception ex)
+        {
+            error_message = $"Error saving transactions: {ex.Message}";
+        }
+    }
+}
